@@ -249,6 +249,9 @@ paket-files/
 # FAKE - F# Make
 .fake/
 
+# Claude Code
+.claude/
+
 # JetBrains Rider
 .idea/
 *.sln.iml

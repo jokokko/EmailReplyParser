@@ -16,7 +16,7 @@ namespace EmailReplyParser.Tests
 Nulla malesuada, orci non vulputate lobortis, massa felis pharetra ex, convallis consectetur ex libero eget ante.
 Nam vel turpis posuere, rhoncus ligula in, venenatis orci. Duis interdum venenatis ex a rutrum.
 Duis ut libero eu lectus consequat consequat ut vel lorem. Vestibulum convallis lectus urna,
-et mollis ligula rutrum quis. Fusce sed odio id arcu varius aliquet nec nec nibh.";
+et mollis ligula rutrum quis. Fusce sed odio id arcu varius aliquet nec nec nibh.".Replace("\r\n", "\n");
 
 		private static Email Get_email(string name)
 		{
@@ -88,7 +88,7 @@ et mollis ligula rutrum quis. Fusce sed odio id arcu varius aliquet nec nec nibh
 		{
 			var email = Get_email("email_emoji");
 
-			Assert.Equal(email.GetVisibleText(), "🎉\n");
+			Assert.Equal(email.GetVisibleText(), "🎉\n\n—\nJohn Doe\nCEO at Pandaland\n\n@pandaland");
 		}
 
 		[Fact]
@@ -317,19 +317,15 @@ et mollis ligula rutrum quis. Fusce sed odio id arcu varius aliquet nec nec nibh
 		{
 			var reply = Get_email("email_1");
 
-			Assert.Equal(3, reply.Fragments.Length);
-
+			Assert.Equal(2, reply.Fragments.Length);
 
 			Assert.True(reply.Fragments.All(x => !x.IsQuoted));
 
-			Assert.Equal(new[] {false, true, true}, reply.Fragments.Select(x => x.IsSignature));
-			Assert.Equal(new[] {false, true, true}, reply.Fragments.Select(x => x.IsHidden));
+			Assert.Equal(new[] {false, true}, reply.Fragments.Select(x => x.IsHidden));
 
 			Assert.Equal(
-				"Hi folks\n\nWhat is the best way to clear a Riak bucket of all key, values after\nrunning a test?\nI am currently using the Java HTTP API.\n",
+				"Hi folks\n\nWhat is the best way to clear a Riak bucket of all key, values after\nrunning a test?\nI am currently using the Java HTTP API.\n\n-Abhishek Kona\n\n",
 				reply.Fragments[0].Content);
-
-			Assert.Equal("-Abhishek Kona\n\n", reply.Fragments[1].Content);
 		}
 
 		[Fact]
@@ -338,26 +334,22 @@ et mollis ligula rutrum quis. Fusce sed odio id arcu varius aliquet nec nec nibh
 			var email = Get_email("email_3");
 
 			var fragments = email.Fragments.ToArray();
-			Assert.Equal(5, fragments.Count());
+			Assert.Equal(4, fragments.Count());
 			Assert.Equal(false, fragments[0].IsQuoted);
-			Assert.Equal(false, fragments[1].IsQuoted);
-			Assert.Equal(true, fragments[2].IsQuoted);
+			Assert.Equal(true, fragments[1].IsQuoted);
+			Assert.Equal(false, fragments[2].IsQuoted);
 			Assert.Equal(false, fragments[3].IsQuoted);
-			Assert.Equal(false, fragments[4].IsQuoted);
 			Assert.Equal(false, fragments[0].IsSignature);
-			Assert.Equal(true, fragments[1].IsSignature);
+			Assert.Equal(false, fragments[1].IsSignature);
 			Assert.Equal(false, fragments[2].IsSignature);
-			Assert.Equal(false, fragments[3].IsSignature);
-			Assert.Equal(true, fragments[4].IsSignature);
+			Assert.Equal(true, fragments[3].IsSignature);
 			Assert.Equal(false, fragments[0].IsHidden);
 			Assert.Equal(true, fragments[1].IsHidden);
 			Assert.Equal(true, fragments[2].IsHidden);
 			Assert.Equal(true, fragments[3].IsHidden);
-			Assert.Equal(true, fragments[4].IsHidden);
 			Assert.Equal(true, @"^Oh thanks.\n\nHaving".Test(fragments[0]));
-			Assert.Equal(true, @"^-A".Test(fragments[1]));
-			Assert.Equal(true, @"^On [^\:]+\:".Test(fragments[2]));
-			Assert.Equal(true, @"^_".Test(fragments[4]));
+			Assert.Equal(true, @"^On [^\:]+\:".Test(fragments[1]));
+			Assert.Equal(true, @"^_".Test(fragments[3]));
 		}
 
 		[Fact]
