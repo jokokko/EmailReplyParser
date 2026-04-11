@@ -1,7 +1,7 @@
-# EmailReplyParser [![Build status](https://ci.appveyor.com/api/projects/status/egn8m4a0iqeq6ib0?svg=true)](https://ci.appveyor.com/project/jokokko/emailreplyparser) [![NuGet Version](http://img.shields.io/nuget/v/EmailReplyParser.svg?style=flat)](https://www.nuget.org/packages/EmailReplyParser/)
+# EmailReplyParser [![Build status](https://ci.appveyor.com/api/projects/status/473woilvdw742tsr?svg=true)](https://ci.appveyor.com/project/jokokko/emailreplyparser) [![NuGet Version](https://img.shields.io/nuget/v/EmailReplyParser.svg?style=flat)](https://www.nuget.org/packages/EmailReplyParser/)
 Email reply parser.
 
-**Package** [EmailReplyParser](https://www.nuget.org/packages/EmailReplyParser) | **Platforms** .NET 4.6, .NET Standard 2.0
+**Package** [EmailReplyParser](https://www.nuget.org/packages/EmailReplyParser) | **Platforms** .NET 8, .NET Standard 2.0
 
 Quick .NET (C#) port of https://github.com/crisp-im/email-reply-parser with small amendments.
 
