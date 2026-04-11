@@ -1,99 +1,79 @@
-#r @"tools/FAKE/tools/FakeLib.dll"
-open System.IO
-open Fake
-open Fake.AssemblyInfoFile
-open Fake.Git.Information
-open Fake.SemVerHelper
-open System
+#r "paket: groupref build //"
+#load ".fake/build.fsx/intellisense.fsx"
 
-let buildMode = getBuildParamOrDefault "buildMode" "Release"
-let buildArtifactPath = FullName "./artifacts"
-let packagesPath = FullName "./tools"
-let assemblyVersion = "2.0.0.0"
+open Fake.Core
+open Fake.Core.TargetOperators
+open Fake.DotNet
+open Fake.IO
+open Fake.IO.Globbing.Operators
+open Fake.Tools.Git
+
+let initializeContext () =
+    let execContext = Context.FakeExecutionContext.Create false "build.fsx" []
+    Context.setExecutionContext (Context.RuntimeContext.Fake execContext)
+
+initializeContext ()
+
+let buildConfig =
+    Environment.environVarOrDefault "buildMode" "Release"
+    |> DotNet.BuildConfiguration.fromString
+
+let buildArtifactPath = Path.getFullName "./artifacts"
 let baseVersion = "2.0.0"
 
-let envVersion = (environVarOrDefault "APPVEYOR_BUILD_VERSION" (baseVersion + ".0"))
-let buildVersion = (envVersion.Substring(0, envVersion.LastIndexOf('.')))
+let envVersion  = Environment.environVarOrDefault "APPVEYOR_BUILD_VERSION" (baseVersion + ".0")
+let buildVersion = envVersion.Substring(0, envVersion.LastIndexOf('.'))
+let version      = (SemVer.parse buildVersion).ToString()
+let fileVersion  = Environment.environVarOrDefault "APPVEYOR_BUILD_VERSION" (version + ".0")
 
-let semVersion : SemVerInfo = (parse buildVersion)
+let branchName =
+    Environment.environVarOrDefault "APPVEYOR_REPO_BRANCH" (Information.getBranchName ".")
 
-let Version = semVersion.ToString()
+let nugetVersion =
+    if branchName = "master" then version
+    else fileVersion + "-" + branchName
 
-let branch = (fun _ ->
-  (environVarOrDefault "APPVEYOR_REPO_BRANCH" (getBranchName "."))
+let infoVersion =
+    let label =
+        if branchName = "master" then ""
+        else sprintf " (%s/%s)" branchName (Information.getCurrentSHA1 ".").[0..7]
+    fileVersion + label
+
+let versionProps =
+    [ "Version",              nugetVersion
+      "AssemblyVersion",      fileVersion
+      "FileVersion",          fileVersion
+      "InformationalVersion", infoVersion ]
+
+Trace.tracefn "Version: %s" version
+
+Target.create "Clean" (fun _ ->
+    Directory.ensure buildArtifactPath
+    Shell.cleanDir buildArtifactPath
 )
 
-let FileVersion = (environVarOrDefault "APPVEYOR_BUILD_VERSION" (Version + "." + "0"))
-
-let informationalVersion = (fun _ ->
-  let branchName = (branch ".")
-  let label = if branchName="master" then "" else " (" + branchName + "/" + (getCurrentSHA1 ".").[0..7] + ")"
-  (FileVersion + label)
+Target.create "Build" (fun _ ->
+    DotNet.build (fun p ->
+        { p with
+            Configuration = buildConfig
+            MSBuildParams = { p.MSBuildParams with Properties = versionProps } }
+    ) "./src/EmailReplyParser.sln"
 )
 
-let nugetVersion = (fun _ ->
-  let branchName = (branch ".")
-  let label = if branchName="master" then "" else "-" + branchName
-  let version = if branchName="master" then Version else FileVersion
-  (version + label)
+Target.create "Test" (fun _ ->
+    !! "src/*.Tests/*.csproj"
+    |> Seq.iter (DotNet.test (fun p -> { p with Configuration = buildConfig }))
 )
 
-let InfoVersion = informationalVersion()
-let NuGetVersion = nugetVersion()
-
-let versionArgs = [ @"/p:Version=""" + NuGetVersion + @""""; @"/p:AssemblyVersion=""" + FileVersion + @""""; @"/p:FileVersion=""" + FileVersion + @""""; @"/p:InformationalVersion=""" + InfoVersion + @"""" ]
-
-printfn "Using version: %s" Version
-
-Target "Clean" (fun _ ->
-  ensureDirectory buildArtifactPath
-
-  CleanDir buildArtifactPath
+Target.create "Package" (fun _ ->
+    !! "src/*/*.csproj" -- "src/*.Tests/*.csproj"
+    |> Seq.iter (DotNet.pack (fun p ->
+        { p with
+            Configuration = buildConfig
+            OutputPath    = Some buildArtifactPath
+            MSBuildParams = { p.MSBuildParams with Properties = versionProps @ [ "IncludeSymbols", "true"; "IncludeSource", "true" ] } }))
 )
 
-Target "RestorePackages" (fun _ -> 
-  DotNetCli.Restore (fun p -> { p with Project = "./src/" } )
-)
+"Clean" ==> "Build" ==> "Test" ==> "Package"
 
-Target "Build" (fun _ ->
-  DotNetCli.Build (fun p-> { p with Project = @".\src\EmailReplyParser.sln"
-                                    Configuration= buildMode
-                                    AdditionalArgs = versionArgs })
-)
-
-Target "Test" (fun _ ->  
-  !! "src/*.Tests/*.csproj" |> Seq.toArray
-  |> Array.iter ( fun project ->    
-    DotNetCli.Test
-      (fun p -> 
-            {
-              p with             
-                  Configuration = buildMode
-                  Project = project                  
-            }) 
-  )       
-)
-
-Target "Package" (fun _ ->
-  !! "src/*/*.csproj" -- "src/*.Tests/*.csproj" |> Seq.toArray
-  |> Array.iter ( fun project ->
-      DotNetCli.Pack (fun p-> { p with 
-                                    Project = project
-                                    Configuration= buildMode
-                                    OutputPath= buildArtifactPath
-                                    AdditionalArgs = versionArgs @ [ @"--include-symbols"; @"--include-source" ] })
-  )
-)
-
-Target "Default" (fun _ ->
-  trace "Build starting..."
-)
-
-"Clean"
-  ==> "RestorePackages"
-  ==> "Build"
-  ==> "Test"  
-  ==> "Package"
-  ==> "Default"
-
-RunTargetOrDefault "Default"
+Target.runOrDefault "Package"

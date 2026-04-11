@@ -10,7 +10,7 @@ skip_commits:
     - assets/*      
     - docs/*    
 
-os: Visual Studio 2017
+os: Visual Studio 2022
 
 configuration: Release
 
@@ -19,10 +19,7 @@ nuget:
   disable_publish_on_pr: true
 
 build_script:
-- cmd: >-
-    build
-
-test: off
+- cmd: build.cmd
 
 artifacts:
 - path: 'artifacts\*.nupkg'
