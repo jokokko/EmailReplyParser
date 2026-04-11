@@ -19,7 +19,7 @@ let buildConfig =
     |> DotNet.BuildConfiguration.fromString
 
 let buildArtifactPath = Path.getFullName "./artifacts"
-let baseVersion = "2.0.0"
+let baseVersion = "2.0.1"
 
 let envVersion  = Environment.environVarOrDefault "APPVEYOR_BUILD_VERSION" (baseVersion + ".0")
 let buildVersion = envVersion.Substring(0, envVersion.LastIndexOf('.'))
